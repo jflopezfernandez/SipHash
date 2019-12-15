@@ -1,34 +1,58 @@
-CC=gcc
-CFLAGS=-Wall --std=c99 
-SRC=siphash.c halfsiphash.c test.c testmain.c
-BIN=test debug vectors
 
-ifneq ($(cROUNDS),)
-CFLAGS:=$(CFLAGS) -DcROUNDS=$(cROUNDS)
+vpath %.c src
+vpath %.h include
+
+MKDIR    ?= mkdir -p
+RM       ?= rm -f
+
+CC       ?=  gcc
+CFLAGS   ?= -std=c99 -Wall -Wextra -Wpedantic -Wno-implicit-fallthrough -Wno-format
+CPPFLAGS ?= 
+
+LD       ?= ld
+LDFLAGS  ?= 
+LIBS     ?= 
+
+CC       := $(strip $(CC))
+CFLAGS   := $(strip $(CFLAGS))
+CPPFLAGS := $(strip $(CPPFLAGS) -I include)
+
+LD       := $(strip $(LD))
+LDFLAGS  := $(strip $(LDFLAGS))
+LIBS     := $(strip $(LIBS))
+
+SRCS     := $(notdir $(wildcard src/*.c))
+OBJS     := $(patsubst %.c,%.o,$(SRCS))
+
+TARGETS  := test debug vectors
+
+ifdef cROUNDS
+    CFLAGS := $(strip $(CFLAGS) -DcROUNDS=$(cROUNDS))
 endif
 
-ifneq ($(dROUNDS),)
-CFLAGS:=$(CFLAGS) -DdROUNDS=$(dROUNDS)
+ifdef dROUNDS
+    CFLAGS := $(strip $(CFLAGS) -DdROUNDS=$(dROUNDS))
 endif
 
-all:                    $(BIN)
+all: $(TARGETS)
+	echo $(CFLAGS)
 
-test:                   $(SRC)
-			$(CC) $(CFLAGS) $^ -o $@
+test: $(SRCS)
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(LDFLAGS) $^ -o $@ $(LIBS)
 
-debug:                  $(SRC) 
-			$(CC) $(CFLAGS) $^ -o $@ -DDEBUG
+debug: $(SRCS) 
+	$(CC) $(CFLAGS) $(CPPFLAGS)            $^ -o $@ -DDEBUG
 
-vectors:                $(SRC) 
-			$(CC) $(CFLAGS) $^ -o $@ -DGETVECTORS
+vectors: $(SRCS) 
+	$(CC) $(CFLAGS) $(CPPFLAGS)            $^ -o $@ -DGETVECTORS
 
-
+.PHONY: clean
 clean:
-			rm -f *.o $(BIN)
-format:
-		        clang-format -style="{BasedOnStyle: llvm, IndentWidth: 4}" \
-			-i *.c *.h 
+	$(RM) $(OBJS) $(TARGETS)
 
-dist:                   clean
-			cd ..; \
-	                tar zcf SipHash-`date +%Y%m%d%H%M`.tgz SipHash/*
+format:
+	clang-format -style="{BasedOnStyle: llvm, IndentWidth: 4}" -i *.c *.h 
+
+dist: clean
+	cd ..; \
+	tar zcf SipHash-`date +%Y%m%d%H%M`.tgz SipHash/*
